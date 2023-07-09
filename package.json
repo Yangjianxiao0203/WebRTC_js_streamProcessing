@@ -1,0 +1,24 @@
+{
+  "name": "webrtc_js_https_selfupdated",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "client1":"npm start --prefix client1",
+    "client2":"npm start --prefix client2",
+    "server":"nodemon index.js",
+    "dev":"concurrently \"npm run server\" \"npm run client1\" \"npm run client2\""
+  },
+  "author": "Jianxiao",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "concurrently": "^8.2.0"
+  }
+}
