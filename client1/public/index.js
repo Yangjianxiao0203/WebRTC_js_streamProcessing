@@ -10,7 +10,7 @@ const iceServers = {
 }
 const constraints={
     audio: false,
-    video: { width: 1280, height: 720 },
+    video: { width: 510, height: 200 },
 }
 
 let rtcPeerConnection;

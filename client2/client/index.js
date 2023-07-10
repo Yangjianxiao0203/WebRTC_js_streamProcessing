@@ -2,7 +2,6 @@
 
 const socket = io.connect("http://localhost:5003");
 const returnSocket = io.connect("http://localhost:5003");
-console.log("socket", socket);
 
 const iceServers = {
     iceServers: [
@@ -12,7 +11,7 @@ const iceServers = {
 }
 const constraints = {
     audio: false,
-    video: { width: 1280, height: 720 },
+    video: { width: 510, height: 200 },
 }
 
 var roomName='a';
@@ -45,7 +44,7 @@ navigator.mediaDevices
     });
 
 socket.on('offer', (offer) => {
-    console.log('client 2 received offer: '+offer);
+    // console.log('client 2 received offer: '+offer);
     rtcPeerConnection = new RTCPeerConnection(iceServers);
     rtcPeerConnection.onicecandidate = onIceCandidateFunction;
     rtcPeerConnection.ontrack = onAddStreamFunction;
@@ -68,7 +67,7 @@ socket.on('offer', (offer) => {
         });
 });
 socket.on('candidate',(candidate)=>{
-    console.log('client 2 received candidate: ');
+    // console.log('client 2 received candidate: ');
     rtcPeerConnection.addIceCandidate(new RTCIceCandidate(candidate));
 })
 
@@ -93,40 +92,6 @@ function onAddStreamFunction(event) {
     }
     returnSocket.emit('joinRoom', returnRoomName);
     startReturnCall();
-}
-
-function processStream(stream) {
-
-    return stream;
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    video.play();
-
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-
-    const [track] = stream.getVideoTracks();
-    const {width, height} = track.getSettings();
-    canvas.width = width;
-    canvas.height = height;
-
-    const outputStream = canvas.captureStream();
-    
-    const updateCanvas = () => {
-        context.clearRect(0, 0, width, height);
-        context.save();
-        context.scale(-1, 1);
-        context.translate(-width, 0);
-        context.drawImage(video, 0, 0, width, height);
-        context.restore();
-        requestAnimationFrame(updateCanvas);
-    };
-
-    video.onplaying = () => {
-        requestAnimationFrame(updateCanvas);
-    };
-    
-    return outputStream;
 }
 
 
@@ -158,19 +123,58 @@ function startReturnCall() {
     rtcPeerConnection2.onicecandidate = onIceCandidateFunction2;
     rtcPeerConnection2.ontrack = onAddStreamFunction2;
     // Add local processed stream
-    // rtcPeerConnection2.addTrack(peerStream.getTracks()[0], peerStream);
-    rtcPeerConnection2.addTrack(userStream.getTracks()[0], userStream);
+    console.log("userStream.getTracks: ",userStream.getTracks()[0])
+    console.log("peerStream.getTracks: ",peerStream.getTracks()[0])
+    rtcPeerConnection2.addTrack(peerStream.getTracks()[0], peerStream);
     // Create offer
     rtcPeerConnection2.createOffer()
         .then((offer) => {
             rtcPeerConnection2.setLocalDescription(offer);
             // send offer to another peer (client1)
             returnSocket.emit('offer', offer, returnRoomName);
-            console.log("return offer sent: ",offer);
+            // console.log("return offer sent: ",offer);
         })
         .catch((error) => {
             console.log(error);
         });
+}
+
+
+function processStream(stream) {
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.play();
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    // Assuming video is 510x200
+    canvas.width = 510;
+    canvas.height = 200;
+
+    video.addEventListener('play', function() {
+        function draw() {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+
+            // Set left half of the image to black
+            for(let y = 0; y < canvas.height; y++) {
+                for(let x = 0; x < canvas.width / 2; x++) {
+                    const index = (y * canvas.width + x) * 4;
+                    imageData.data[index + 0] = 0; // R value
+                    imageData.data[index + 1] = 0; // G value
+                    imageData.data[index + 2] = 0; // B value
+                    imageData.data[index + 3] = 255; // A value
+                }
+            }
+
+            context.putImageData(imageData, 0, 0);
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+    });
+
+    return canvas.captureStream();
 }
 
 
