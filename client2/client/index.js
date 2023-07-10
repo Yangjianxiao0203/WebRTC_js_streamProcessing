@@ -1,6 +1,7 @@
 // Client 2: Receive offer and send answer, candidate
 
 const socket = io.connect("http://localhost:5003");
+const returnSocket = io.connect("http://localhost:5003");
 console.log("socket", socket);
 
 const iceServers = {
@@ -19,6 +20,7 @@ var peerStream;
 var returnRoomName='b';
 
 let rtcPeerConnection;
+let rtcPeerConnection2;
 let userStream;
 
 socket.emit('joinRoom', roomName);
@@ -26,6 +28,7 @@ socket.emit('joinRoom', roomName);
 const userVideo=document.getElementById('user-video');
 const peerVideo=document.getElementById('peer-video');
 const processedVideo=document.getElementById('processed-video');
+const processedReturnVideo=document.getElementById('processed-return-video');
 
 navigator.mediaDevices
     .getUserMedia(constraints)
@@ -66,7 +69,6 @@ socket.on('offer', (offer) => {
 });
 socket.on('candidate',(candidate)=>{
     console.log('client 2 received candidate: ');
-    console.log(candidate);
     rtcPeerConnection.addIceCandidate(new RTCIceCandidate(candidate));
 })
 
@@ -85,14 +87,17 @@ function onAddStreamFunction(event) {
     console.log("original stream: ",event.streams[0])
     peerStream = processStream(event.streams[0]);
     console.log("peerStream: ",peerStream)
-    // processedVideo.srcObject = peerStream;
-    processedVideo.srcObject = event.streams[0];
+    processedVideo.srcObject = peerStream;
     processedVideo.onloadedmetadata = () => {
         processedVideo.play();
     }
+    returnSocket.emit('joinRoom', returnRoomName);
+    startReturnCall();
 }
 
 function processStream(stream) {
+
+    return stream;
     const video = document.createElement('video');
     video.srcObject = stream;
     video.play();
@@ -125,4 +130,49 @@ function processStream(stream) {
 }
 
 
-// return the stream to the client 1
+// return the stream to the client 1, use returnRoomName to rebuild a new peer connection
+function onIceCandidateFunction2(event){
+    if(event.candidate){
+        returnSocket.emit('candidate',event.candidate,returnRoomName);
+    }
+}
+
+function onAddStreamFunction2(event) {
+    processedReturnVideo.srcObject = event.streams[0];
+    processedReturnVideo.onloadedmetadata = () => {
+        processedReturnVideo.play();
+    };
+}
+
+returnSocket.on('answer',(answer)=>{
+    rtcPeerConnection2.setRemoteDescription(new RTCSessionDescription(answer));
+    console.log("return answer received: ",answer);
+})
+
+returnSocket.on('candidate',(candidate)=>{
+    rtcPeerConnection2.addIceCandidate(new RTCIceCandidate(candidate));
+})
+
+function startReturnCall() {
+    rtcPeerConnection2 = new RTCPeerConnection(iceServers);
+    rtcPeerConnection2.onicecandidate = onIceCandidateFunction2;
+    rtcPeerConnection2.ontrack = onAddStreamFunction2;
+    // Add local processed stream
+    // rtcPeerConnection2.addTrack(peerStream.getTracks()[0], peerStream);
+    rtcPeerConnection2.addTrack(userStream.getTracks()[0], userStream);
+    // Create offer
+    rtcPeerConnection2.createOffer()
+        .then((offer) => {
+            rtcPeerConnection2.setLocalDescription(offer);
+            // send offer to another peer (client1)
+            returnSocket.emit('offer', offer, returnRoomName);
+            console.log("return offer sent: ",offer);
+        })
+        .catch((error) => {
+            console.log(error);
+        });
+}
+
+
+
+

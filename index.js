@@ -17,11 +17,9 @@ const io = socket(server, {
 });
 
 io.on ('connection', (socket) => {
-
     socket.on('joinRoom', (roomName) => {
         socket.join(roomName);
     });
-
     socket.on('candidate', (candidate, roomName) => {
         socket.broadcast.to(roomName).emit('candidate', candidate);
     });
